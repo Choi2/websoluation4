@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+	
+<mapper namespace="MenuDao">
+
+	<resultMap type="MenuVO" id="MenuMap">
+	
+		<id column="MENU_NO" property="menu_number" />
+		<result column="MENU_DT" property="menu_date" />
+		<result column="MENU_KIND" property="menu_kind" />
+		<result column="MENU_FILE_NAME" property="menu_file_name" />
+	
+	</resultMap>
+	
+	<resultMap type="MenuLogVO" id="MenuLogMap">
+		<id column="MENU_NO" property="menu_number" />
+		<result column="MENU_DT" property="menu_date" />
+		<result column="MENU_KIND" property="menu_kind" />
+		<result column="MENU_FILE_NAME" property="menu_file_name" />
+		<result column="LIKE" property="log_like" />
+	</resultMap>
+
+	<resultMap type="MenuMainRequestVO" id="MenuMainMap">
+	
+		<result column="MENU_NO" property="menu_number" />
+		<result column="MENU_DT" property="menu_date" />
+		<result column="MENU_KIND" property="menu_kind" />
+		<result column="FOOD_NAME" property="food_name" />
+
+	</resultMap>
+	
+	<resultMap id="MenuResultMap" type="MenuResultVO">
+		<id column="MENU_NO" property="menu_no" />
+		<result column="MENU_DT" property="menu_date" />
+		<result column="MENU_KIND" property="menu_kind" />
+		<result column="MENU_FILE_NAME" property="menu_file_name" />
+		
+		<collection property="foodVO" javaType="ArrayList" column="MENU_NO" ofType="FoodVO" select="getFoodListByMenuNo"/>
+
+	</resultMap>
+	
+	
+	<select id="selectById" parameterType="string" resultMap="MenuMap">
+		SELECT MENU_NO, MENU_DT, MENU_KIND, MENU_FILE_NAME
+		FROM MENU
+		WHERE MENU_NO = #{menu_number}
+	</select>
+
+	<select id="selectByUserNumber" parameterType="int" resultMap="MenuLogMap">
+		SELECT M.MENU_NO, M.MENU_DT, M.MENU_KIND, M.MENU_FILE_NAME, L.LIKE
+		FROM LOG L
+		JOIN MENU M
+		ON L.MENU_NO = M.MENU_NO
+		WHERE USR_NO = #{user_number}
+	</select>
+	
+	<select id="selectLogAll" resultMap="MenuLogMap">
+		SELECT M.MENU_NO, M.MENU_DT, M.MENU_KIND, M.MENU_FILE_NAME, L.LIKE
+		FROM LOG L
+		JOIN MENU M
+		ON L.MENU_NO = M.MENU_NO
+	</select>
+
+	<select id="getOneWeekMenu" parameterType="_int" resultMap="MenuMainMap">
+		SELECT	M.MENU_NO
+				, 	M.MENU_DT
+				,	M.MENU_KIND
+				,	F.FOOD_NAME
+		FROM 	FOOD_SET FS
+				, 	MENU M
+				,	FOOD F
+		WHERE	M.MENU_NO = FS.MENU_NO
+		AND		FS.FOOD_NO = F.FOOD_NO 
+		AND		M.MENU_KIND = #{menu_kind}
+		AND		M.MENU_DT >= ADDDATE( CURDATE(), - WEEKDAY(CURDATE()) + 7) 
+		AND		M.MENU_DT <![CDATA[<= ]]> ADDDATE( CURDATE(), - WEEKDAY(CURDATE()) + 11 ) 
+		ORDER 	BY 	M.MENU_DT
+					, M.MENU_NO 
+	</select> 
+	
+	<insert id="insertOneMenu" parameterType="MenuVO" useGeneratedKeys="true" keyProperty="menu_number" keyColumn="MENU_NO">
+			INSERT	INTO	MENU	(
+									MENU_DT
+									, MENU_KIND
+									, MENU_FILE_NAME
+								)
+			VALUES				(
+									#{menu_date}
+									, #{menu_kind}
+									, #{menu_file_name}
+								) 
+	</insert>
+	
+	<insert id="updateOneFood" parameterType="FoodVO" useGeneratedKeys="true" keyProperty="food_no" keyColumn="FOOD_NO">
+			INSERT	INTO	FOOD	(
+									FOOD_NAME
+									, FOOD_CAL
+									, FOOD_KIND
+								)
+			VALUES				(
+									#{food_name}
+									, #{food_calory}
+									, #{food_kind}
+								) 
+			ON DUPLICATE KEY UPDATE FOOD_NAME=#{food_name}, FOOD_CAL=#{food_calory}, FOOD_KIND=#{food_kind} 
+	</insert>
+	
+	<insert id="insertOneFoodSet" parameterType="FoodSetVO">
+			INSERT	INTO	FOOD_SET	(
+									MENU_NO
+									, FOOD_NO
+								)
+			VALUES				(
+									#{menu_no}
+									, #{food_no}
+								) 
+	</insert>
+	
+	<select id="getFoodNoByFoodName" parameterType="string" resultType="_int">
+		SELECT FOOD_NO
+		FROM FOOD
+		WHERE FOOD_NAME = #{food_name}
+	</select>
+
+	<select id="getTodayMenu" resultMap="MenuMainMap">
+		SELECT	M.MENU_NO
+				, 	M.MENU_DT
+				,	M.MENU_KIND
+				,	F.FOOD_NAME
+		FROM 	FOOD_SET FS
+				, 	MENU M
+				,	FOOD F
+		WHERE	M.MENU_NO = FS.MENU_NO
+		AND		FS.FOOD_NO = F.FOOD_NO 
+		AND		M.MENU_DT = curdate()
+		ORDER 	BY 	M.MENU_NO
+					, M.MENU_KIND 
+	</select>
+	
+	<insert id="insertLike" parameterType="menuLikeRequestVO">
+			INSERT	INTO	LOG	(
+									USR_NO
+									, MENU_NO
+									, `LIKE`
+								)
+			VALUES				(
+									#{user_no}
+									, #{menu_no}
+									, #{like}
+								) 
+	</insert>
+
+	<select id="getMenuList" resultMap="MenuResultMap">
+		SELECT M.MENU_NO
+			, M.MENU_DT
+			, M.MENU_KIND
+			, M.MENU_FILE_NAME
+		FROM MENU M
+		ORDER BY m.MENU_DT DESC
+	</select>
+	
+	<select id="getFoodListByMenuNo" resultType="FoodVO">
+		SELECT F.FOOD_NAME as food_name
+			, F.FOOD_CAL as food_calory
+			, F.FOOD_KIND as food_kind
+		FROM FOOD_SET FS
+		join FOOD F on F.FOOD_NO = FS.FOOD_NO 
+		where FS.MENU_NO = #{MENU_NO}
+		ORDER BY F.FOOD_KIND
+	</select>
+	
+	<delete id="deleteFoodSetByMenuNo" parameterType="int">
+  		DELETE FROM FOOD_SET
+  		WHERE MENU_NO = #{menu_no}
+	</delete>
+	
+	<delete id="deleteMenuByMenuNo" parameterType="_int">
+  		DELETE FROM MENU
+  		WHERE MENU_NO = #{menu_no}
+	</delete>
+	
+	<select id="getOneMenu" resultMap="MenuResultMap">
+		SELECT M.MENU_NO
+			, M.MENU_DT
+			, M.MENU_KIND
+			, M.MENU_FILE_NAME
+		FROM MENU M
+		WHERE MENU_NO = #{menu_no}
+	</select>
+	
+	<update id="updateOneMenu">
+	UPDATE MENU SET
+		MENU_DT = #{menu_date}
+		, MENU_KIND = #{menu_kind}
+		, MENU_FILE_NAME = #{menu_file_name}
+	WHERE MENU_NO = #{menu_number}
+	</update>
+	
+	<select id="checkLike" resultType="menuLikeRequestVO">
+		SELECT 		USR_NO
+					,	MENU_NO
+		FROM		LOG
+		WHERE		USR_NO = #{user_no}
+		AND			MENU_NO = #{menu_no}
+	</select>
+	
+	
+</mapper>
